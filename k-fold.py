@@ -35,6 +35,7 @@ sequences = train_embeddings + test_embeddings
 labels = label_train + label_test
 print(len(labels))
 print(len(sequences))
+
 # shuffle data
 dataset = list(zip(sequences, labels))
 n_classes = 2
@@ -55,7 +56,7 @@ class ProteinClassifier(nn.Module):
         self.activation = torch.nn.Sigmoid()
 
     def forward(self, x):
-        #x = x.view(-1, x.size(0))
+        # x = x.view(-1, x.size(0))
         x = F.relu(self.fc1(x))
         x = self.dropout1(x)
         x = F.relu(self.fc2(x))
@@ -64,13 +65,14 @@ class ProteinClassifier(nn.Module):
         x = self.activation(self.fc4(x))
         return x
 
+
 learning_rate = 0.00001
-num_epochs = 10
-k_folds = 5
+num_epochs = 100
+k_folds = 10
 
 # For fold results
 results = {}
-  
+
 # Set fixed random number seed
 torch.manual_seed(42)
 # initialize network
@@ -82,105 +84,116 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Define the K-fold Cross Validator
 kfold = KFold(n_splits=k_folds, shuffle=True)
-    
+
 # Start print
-print('--------------------------------')
+print("--------------------------------")
 
 # K-fold Cross Validation model evaluation
 for fold, (train_ids, test_ids) in enumerate(kfold.split(dataset)):
-    
+
     # Print
-    print(f'FOLD {fold}')
-    print('--------------------------------')
+    print(f"FOLD {fold}")
+    print("--------------------------------")
     # Sample elements randomly from a given list of ids, no replacement.
     train_subsampler = torch.utils.data.SubsetRandomSampler(train_ids)
     test_subsampler = torch.utils.data.SubsetRandomSampler(test_ids)
     # Define data loaders for training and testing data in this fold
     trainloader = torch.utils.data.DataLoader(
-                      dataset, 
-                      batch_size=10, sampler=train_subsampler)
+        dataset, batch_size=10, sampler=train_subsampler
+    )
     testloader = torch.utils.data.DataLoader(
-                      dataset,
-                      batch_size=10, sampler=test_subsampler)
+        dataset, batch_size=10, sampler=test_subsampler
+    )
     # Train network
 
     for epoch in range(0, num_epochs):
 
-      # Print epoch
-      print(f'Starting epoch {epoch+1}')
+        # Print epoch
+        print(f"Starting epoch {epoch+1}")
 
-      # Set current loss value
-      current_loss = 0.0
+        # Set loss and correct value
+        train_loss = 0.0
 
-      # Iterate over the DataLoader for training data
-      for i, data in enumerate(trainloader, 0):
-        
-        # Get inputs
-        inputs, targets = data
-        #print(targets.shape)
-        #print(targets.squeeze(-1).shape)
-        #print(inputs.shape)
-        
-        # Zero the gradients
-        optimizer.zero_grad()
-        
-        # Perform forward pass
-        outputs = model(inputs)
-        
-        # Compute loss
-        loss = criterion(outputs, targets.squeeze(-1))
-        
-        # Perform backward pass
-        loss.backward()
-        
-        # Perform optimization
-        optimizer.step()
-        
-        # Print statistics
-        current_loss += loss.item()
-        if i % 500 == 499:
-            print('Loss after mini-batch %5d: %.3f' %
-                  (i + 1, current_loss / 500))
-            current_loss = 0.0
-            
+        # Iterate over the DataLoader for training data
+        for i, data in enumerate(trainloader, 0):
+
+            # Get inputs
+            inputs, targets = data
+            # print(targets.shape)
+            # print(targets.squeeze(-1).shape)
+            # print(inputs.shape)
+
+            # Zero the gradients
+            optimizer.zero_grad()
+
+            # Perform forward pass
+            outputs = model(inputs)
+
+            # Compute loss
+            loss = criterion(outputs, targets.squeeze(-1))
+
+            # Perform backward pass
+            loss.backward()
+
+            # Perform optimization
+            optimizer.step()
+
+            # Print statistics
+            train_loss += loss.item()
+            if i % 500 == 499:
+                # print("Loss after mini-batch %5d: %.3f" % (i + 1, train_loss / 500))
+                print("Loss after mini-batch %5d: %.3f" % (i + 1, train_loss / 500))
+
     # Process is complete.
-    print('Training process has finished. Saving trained model.')
+    print("Training process has finished. Saving trained model.")
 
     # Print about testing
-    print('Starting testing')
-    """
+    print("Starting testing")
+
     # Saving the model
-    save_path = f'./model-fold-{fold}.pth'
-    torch.save(network.state_dict(), save_path)
-    """
-    # Evaluationfor this fold
-    correct, total = 0, 0
+    save_path = f"./model-fold-{fold}.pth"
+    torch.save(model.state_dict(), save_path)
+
+    # Evaluation for this fold
+    test_correct, total = 0, 0
     with torch.no_grad():
 
-      # Iterate over the test data and generate predictions
-      for i, data in enumerate(testloader, 0):
+        # Iterate over the test data and generate predictions
+        for i, data in enumerate(testloader, 0):
 
-        # Get inputs
-        inputs, targets = data
+            # Get inputs
+            inputs, targets = data
 
-        # Generate outputs
-        outputs = model(inputs)
+            # Generate outputs
+            outputs = model(inputs)
 
-        # Set total and correct
-        _, predicted = torch.max(outputs.data, 1)
-        total += targets.squeeze(-1).size(0)
-        correct += (predicted == targets.squeeze(-1)).sum().item()
+            # Set total and correct
+            _, predicted = torch.max(outputs.data, 1)
+            total += targets.squeeze(-1).size(0)
+            test_correct += (predicted == targets.squeeze(-1)).sum().item()
 
-      # Print accuracy
-      print('Accuracy for fold %d: %d %%' % (fold, 100.0 * correct / total))
-      print('--------------------------------')
-      results[fold] = 100.0 * (correct / total)
-    
+        # Print accuracy
+        """
+        print(
+            "Accuracy for fold %d: %d %%"
+            % (fold, 100.0 * test_correct / total)
+        )
+        print("--------------------------------")
+        results[fold] = 100.0 * (test_correct / total)
+        """
+        print(
+            "Accuracy for fold %d: %d %%"
+            % (fold, 100.0 * test_correct / len(test_subsampler))
+        )
+        print("--------------------------------")
+        results[fold] = 100.0 * (test_correct / len(test_subsampler))
+
 # Print fold results
-print(f'K-FOLD CROSS VALIDATION RESULTS FOR {k_folds} FOLDS')
-print('--------------------------------')
+print(f"K-FOLD CROSS VALIDATION RESULTS FOR {k_folds} FOLDS")
+print("--------------------------------")
 sum = 0.0
 for key, value in results.items():
-    print(f'Fold {key}: {value} %')
+    print(f"Fold {key}: {value} %")
     sum += value
-    print(f'Average: {sum/len(results.items())} %')
+    print(f"Average: {sum/len(results.items())} %")
+
