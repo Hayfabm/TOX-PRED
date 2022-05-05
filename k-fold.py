@@ -75,12 +75,11 @@ results = {}
 
 # Set fixed random number seed
 torch.manual_seed(42)
-# initialize network
-model = ProteinClassifier(n_classes).to(device)
-print(model)
+
+
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
 
 # Define the K-fold Cross Validator
 kfold = KFold(n_splits=k_folds, shuffle=True)
@@ -104,6 +103,11 @@ for fold, (train_ids, test_ids) in enumerate(kfold.split(dataset)):
     testloader = torch.utils.data.DataLoader(
         dataset, batch_size=10, sampler=test_subsampler
     )
+
+    # initialize network
+    model = ProteinClassifier(n_classes).to(device)
+    # initialize the optimizer
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     # Train network
 
     for epoch in range(0, num_epochs):
@@ -149,11 +153,11 @@ for fold, (train_ids, test_ids) in enumerate(kfold.split(dataset)):
 
     # Print about testing
     print("Starting testing")
-
+    """
     # Saving the model
-    save_path = f"./model-fold-{fold}.pth"
+    save_path = f"./checkpoint/model-fold-{fold}.pt"
     torch.save(model.state_dict(), save_path)
-
+    """
     # Evaluation for this fold
     test_correct, total = 0, 0
     with torch.no_grad():
